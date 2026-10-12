@@ -1,14 +1,128 @@
 <!DOCTYPE html>
 <html lang="sk">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <meta name="OctoClix" content="EhzWcQXa5f">
-
-  <title>Lili Faucet</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="monetag" content="3528087">
+<title>TomoEarn - Video Playlist</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://5gvci.com/act/files/tag.min.js?z=12009043" data-cfasync="false" async></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial;background:#0b0f14;color:#fff}
+header{padding:16px;text-align:center;background:#111821;border-bottom:1px solid #26313d;position:sticky;top:0}
+.logo{font-size:28px;font-weight:bold}.logo span{color:#35d07f}
+.container{max-width:600px;margin:auto;padding:16px}
+.card{background:#111821;border:1px solid #26313d;border-radius:16px;padding:18px;margin-bottom:16px}
+input{width:100%;padding:16px;margin:8px 0;border-radius:12px;border:1px solid #354453;background:#18212b;color:#fff}
+button{width:100%;padding:16px;margin-top:10px;border:0;border-radius:12px;font-weight:bold;font-size:17px;cursor:pointer}
+.primary{background:#35d07f;color:#000}.secondary{background:#202b36;color:#fff;border:1px solid #354453}
+.hidden{display:none}
+.task-video{width:100%;max-height:380px;border-radius:12px;background:#000;margin:12px 0}
+.timer{font-size:36px;font-weight:bold;color:#35d07f;text-align:center}
+.progress{height:6px;background:#26313d;border-radius:20px;overflow:hidden;margin:10px 0}
+.progress-bar{height:100%;width:0;background:#35d07f;transition:width 1s linear}
+.badge{display:inline-block;background:#1a2e23;color:#35d07f;border:1px solid #24563b;padding:4px 10px;border-radius:20px;font-size:11px;margin:3px}
+.small{color:#8a98a7;font-size:12px;text-align:center;margin-top:8px}
+</style>
 </head>
 <body>
-  <h1>Lili Faucet</h1>
+<header><div class="logo">Tomo<span>Earn</span></div></header>
+<div class="container">
+<div class="card" id="authBox">
+<h2>Login</h2>
+<input id="email" type="email" placeholder="Email">
+<input id="password" type="password" placeholder="Heslo">
+<button class="primary" onclick="login()">PRIHLÁSIŤ</button>
+<button class="secondary" onclick="register()">REGISTRÁCIA</button>
+<div id="msg" class="small"></div>
+</div>
+<div id="app" class="hidden">
+<div class="card" style="text-align:center">
+<div class="small">ÚČET</div>
+<div id="userEmail" style="font-weight:bold;margin:6px 0"></div>
+<div><span class="badge" id="countBadge">0 VIDEÍ</span> <span class="badge">Monetag 12009043 ACTIVE</span></div>
+</div>
+<div class="card" id="playerCard">
+<h2>Playlist - 1 KLIK</h2>
+<div id="taskList">Načítavam videá...</div>
+<div class="small">Klikneš 1x a ide to samé. Zárobok uvidíš v Monetag dashboard.</div>
+</div>
+<div class="card"><button class="secondary" onclick="logout()">ODHLÁSIŤ</button></div>
+</div>
+</div>
+<script>
+const SUPABASE_URL="https://irfrtnzetkejbdaihmmo.supabase.co";
+const SUPABASE_KEY="sb_publishable_j95JBEVTQIsqp10TiGymSQ_wZVI4ADB";
+const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null,running=false,pool=[],idx=0;
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+async function fetchPool(){
+ let all=[];
+ try{
+  const {data,error}=await client.functions.invoke("pixabay-videos",{body:{count:100}});
+  if(!error && data && data.videos) all=data.videos;
+ }catch(e){}
+ if(all.length<10){
+  for(let i=0;i<50;i++) all.push({id:"fb"+i,video_url:"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",title:"Video #"+(i+1)});
+ }
+ pool=all;
+ document.getElementById("countBadge").textContent=pool.length+" VIDEÍ";
+ return pool;
+}
+async function register(){
+ const email=document.getElementById("email").value.trim();
+ const pass=document.getElementById("password").value;
+ const {error}=await client.auth.signUp({email,password:pass});
+ document.getElementById("msg").textContent= error ? error.message : "Účet vytvorený";
+}
+async function login(){
+ const email=document.getElementById("email").value.trim();
+ const pass=document.getElementById("password").value;
+ const {data,error}=await client.auth.signInWithPassword({email,password:pass});
+ if(error){document.getElementById("msg").textContent=error.message;return}
+ currentUser=data.user; loadApp();
+}
+async function loadApp(){
+ const {data}=await client.auth.getUser();
+ currentUser=data.user;
+ if(!currentUser){
+  document.getElementById("authBox").classList.remove("hidden");
+  document.getElementById("app").classList.add("hidden"); return;
+ }
+ document.getElementById("authBox").classList.add("hidden");
+ document.getElementById("app").classList.remove("hidden");
+ document.getElementById("userEmail").textContent=currentUser.email;
+ await fetchPool();
+ document.getElementById("taskList").innerHTML=`<div style="text-align:center"><b>${pool.length} videí</b><br><button class="primary" style="background:#ffcc33;color:#000;margin-top:14px" onclick="startPlaylist()">▶️ ŠTART - 1 KLIK A IDE SAMO</button></div>`;
+}
+async function startPlaylist(){
+ running=true; idx=0;
+ while(running && idx<pool.length){ await playOne(pool[idx]); idx++; }
+ if(running){ idx=0; startPlaylist(); }
+}
+async function playOne(video){
+ const list=document.getElementById("taskList");
+ list.innerHTML=`<div><div style="font-weight:bold">${video.title}</div>
+ <video id="v" class="task-video" autoplay muted playsinline><source src="${video.video_url}"></video>
+ <div class="timer" id="timer">15</div>
+ <div class="progress"><div class="progress-bar" id="bar"></div></div>
+ <div class="small">${idx+1} / ${pool.length}</div>
+ <button class="secondary" onclick="running=false;loadApp()">⏹️ STOP</button></div>`;
+ const v=document.getElementById("v");
+ try{ await v.play(); }catch(e){}
+ let t=15;
+ return new Promise(async (resolve)=>{
+   v.onended=()=>resolve();
+   while(t>0 && running){
+    const el=document.getElementById("timer"); const bar=document.getElementById("bar");
+    if(el) el.textContent=t; if(bar) bar.style.width=((15-t)/15*100)+"%";
+    await sleep(1000); t--;
+   }
+   resolve();
+ });
+}
+async function logout(){ running=false; await client.auth.signOut(); location.reload(); }
+(async()=>{ const {data}=await client.auth.getSession(); if(data?.session?.user){ currentUser=data.session.user; loadApp(); } })();
+</script>
 </body>
 </html>
